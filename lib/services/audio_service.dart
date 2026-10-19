@@ -62,6 +62,16 @@ class AudioService {
     _routeSub = null;
   }
 
+  static Future<void> shutdown() async {
+    stopWatchdog();
+    try {
+      await backend.shutdownEngine().timeout(const Duration(seconds: 2));
+    } catch (e) {
+      Logger.errorAudioService('shutdown: $e');
+    }
+    _engineReady = false;
+  }
+
   static int _deviceChangePendingCount = 0;
   static const int _kDeviceChangeDebounce = 2;
 
@@ -149,6 +159,9 @@ class AudioService {
         }
         Logger.debugAudioService('engine attempt ${attempt + 1} SUCCESS');
         _engineReady = true;
+        if (exclusive && !backend.isExclusiveMode()) {
+          Logger.warnAudioService('exclusive unsupported; using shared mixer');
+        }
         Logger.debugAudioService('engine ready (attempt ${attempt + 1})');
         break;
       } catch (e, st) {
@@ -194,6 +207,9 @@ class AudioService {
       }
       _engineReady = true;
       await _applyVolume();
+      if (exclusive && !backend.isExclusiveMode()) {
+        Logger.warnAudioService('exclusive unsupported; using shared mixer');
+      }
       Logger.debugAudioService('reinitToDevice OK');
       return true;
     } catch (e) {

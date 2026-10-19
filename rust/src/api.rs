@@ -30,6 +30,9 @@ pub fn reinit_engine(device_id: String, exclusive: bool) -> Result<()> {
 pub fn recover_engine() -> Result<()> {
     AudioEngine::recover_engine()
 }
+pub fn shutdown_engine() {
+    AudioEngine::shutdown();
+}
 #[frb(sync)]
 pub fn is_decode_thread_dead() -> bool {
     AudioEngine::decode_dead_now()

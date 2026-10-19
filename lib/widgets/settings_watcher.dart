@@ -45,6 +45,7 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
   bool _nightlyNoticeStarted = false;
   bool _firstFolderStarted = false;
   bool _trayStarted = false;
+  bool _exclusiveCorrected = false;
   String? _trayTrack;
   bool? _trayPlaying;
 
@@ -103,9 +104,25 @@ class _SettingsWatcherState extends ConsumerState<SettingsWatcher> {
       _maybeNightlyNotice();
       _maybeFirstMusicFolder(library);
       _syncTray(s, player);
+      _correctExclusiveOutput(s);
     });
 
     return widget.child;
+  }
+
+  void _correctExclusiveOutput(SettingsState s) {
+    if (_exclusiveCorrected || !s.loaded) return;
+    if (s.outputMode != AudioOutputMode.exclusive) {
+      _exclusiveCorrected = true;
+      return;
+    }
+
+    final id = s.selectedDeviceId;
+    if (id == null || id.isEmpty) return;
+    if (!AudioService.engineReady) return;
+    _exclusiveCorrected = true;
+    if (backend.isExclusiveMode()) return;
+    ref.read(settingsProvider.notifier).setOutputMode(AudioOutputMode.system);
   }
 
   void _applyMediaControls(PlayerState player) {

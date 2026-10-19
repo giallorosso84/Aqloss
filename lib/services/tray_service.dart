@@ -1,5 +1,6 @@
 import 'dart:io';
 
+import 'package:aqloss/services/audio_service.dart';
 import 'package:aqloss/util/logger.dart';
 import 'package:aqloss/util/tray.dart';
 import 'package:flutter/foundation.dart';
@@ -119,10 +120,18 @@ class TrayService with TrayListener {
   }
 
   Future<void> quitApp() async {
+    if (_quitting) return;
     _quitting = true;
+    await AudioService.shutdown();
     await destroy();
-    await windowManager.setPreventClose(false);
-    await windowManager.destroy();
+    try {
+      await windowManager.setPreventClose(false);
+    } catch (_) {}
+    // Delay destroy
+    await Future<void>.delayed(const Duration(milliseconds: 50));
+    try {
+      await windowManager.destroy();
+    } catch (_) {}
   }
 
   @override

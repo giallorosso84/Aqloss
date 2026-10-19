@@ -66,7 +66,7 @@ class AqlossCore
   String get codegenVersion => '2.13.0';
 
   @override
-  int get rustContentHash => -1501097376;
+  int get rustContentHash => -142699369;
 
   static const kDefaultExternalLibraryLoaderConfig =
       ExternalLibraryLoaderConfig(
@@ -230,6 +230,8 @@ abstract class AqlossCoreApi extends BaseApi {
   Future<void> crateApiSetStereoWidth({required double width});
 
   Future<void> crateApiSetVolume({required double volume});
+
+  Future<void> crateApiShutdownEngine();
 
   Future<void> crateApiStop();
 }
@@ -1861,7 +1863,7 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
       const TaskConstMeta(debugName: "set_volume", argNames: ["volume"]);
 
   @override
-  Future<void> crateApiStop() {
+  Future<void> crateApiShutdownEngine() {
     return handler.executeNormal(
       NormalTask(
         callFfi: (port_) {
@@ -1870,6 +1872,33 @@ class AqlossCoreApiImpl extends AqlossCoreApiImplPlatform
             generalizedFrbRustBinding,
             serializer,
             funcId: 56,
+            port: port_,
+          );
+        },
+        codec: SseCodec(
+          decodeSuccessData: sse_decode_unit,
+          decodeErrorData: null,
+        ),
+        constMeta: kCrateApiShutdownEngineConstMeta,
+        argValues: [],
+        apiImpl: this,
+      ),
+    );
+  }
+
+  TaskConstMeta get kCrateApiShutdownEngineConstMeta =>
+      const TaskConstMeta(debugName: "shutdown_engine", argNames: []);
+
+  @override
+  Future<void> crateApiStop() {
+    return handler.executeNormal(
+      NormalTask(
+        callFfi: (port_) {
+          final serializer = SseSerializer(generalizedFrbRustBinding);
+          pdeCallFfi(
+            generalizedFrbRustBinding,
+            serializer,
+            funcId: 57,
             port: port_,
           );
         },
