@@ -101,25 +101,34 @@ class AudioDeviceNotifier extends AsyncNotifier<AudioDeviceState> {
     state = AsyncValue.data(current.copyWith(isSwitching: true));
 
     try {
-      final exclusive = mode == AudioOutputMode.exclusive;
+      final device = current.devices.where((d) => d.id == deviceId).firstOrNull;
+      var saved = mode;
+      if (saved == AudioOutputMode.exclusive &&
+          device != null &&
+          !device.supportsExclusive) {
+        saved = AudioOutputMode.system;
+      }
       final ok = await AudioService.reinitToDevice(
         deviceId: deviceId,
-        exclusive: exclusive,
+        exclusive: saved == AudioOutputMode.exclusive,
       );
       if (!ok) {
         throw Exception(
-          exclusive
+          saved == AudioOutputMode.exclusive
               ? 'Could not open exclusive output. The device is in use by another app.'
               : 'Could not switch output device.',
         );
       }
+      if (saved == AudioOutputMode.exclusive && !backend.isExclusiveMode()) {
+        saved = AudioOutputMode.system;
+      }
 
-      ref.read(settingsProvider.notifier).setAudioDevice(deviceId, mode);
+      ref.read(settingsProvider.notifier).setAudioDevice(deviceId, saved);
 
       state = AsyncValue.data(
         current.copyWith(
           selectedId: deviceId,
-          outputMode: mode,
+          outputMode: saved,
           isSwitching: false,
         ),
       );

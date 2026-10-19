@@ -70,6 +70,8 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Linux] Add Folder uses the in-app picker, so it is not hidden behind the window and does not use a dark GTK title bar (#30)
 - [Windows|Audio] Exclusive output no longer freezes the app when the DAC does not start in time (#41)
 - [Linux] The GTK window is mapped before the Flutter view is created, so Hyprland gets a toplevel even if the engine hangs (#42)
+- [Windows] Quit stops the audio engine before the window exits, so a live exclusive stream cannot crash Flutter (#46)
+- [Windows] Exclusive output uses the shared mixer when the device does not support exclusive (#46)
 - [Linux] Flutter uses a private fontconfig cache and skips WOFF font files, so a broken host font cache cannot freeze the first frame (#42)
 - [Linux] The window uses the Aqloss icon instead of the Flutter flask (#30)
 

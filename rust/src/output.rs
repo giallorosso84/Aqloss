@@ -113,16 +113,30 @@ impl AudioOutput {
                 }
                 Err(e) => {
                     if exclusive {
-                        prepare_mixer(None, false);
+                        return Self::shared_after_exclusive_failure(device_id, hint, e);
                     }
                     return Err(e);
                 }
             }
         }
         if exclusive {
-            prepare_mixer(None, false);
+            return Self::shared_after_exclusive_failure(
+                device_id,
+                hint,
+                last.unwrap_or_else(|| anyhow!("device busy")),
+            );
         }
         Err(last.unwrap_or_else(|| anyhow!("device busy")))
+    }
+
+    fn shared_after_exclusive_failure(
+        device_id: Option<&str>,
+        hint: Option<FormatHint>,
+        err: anyhow::Error,
+    ) -> Result<Self> {
+        prepare_mixer(None, false);
+        crate::logger::warn_output(format!("exclusive open failed ({err}); using shared mixer"));
+        Self::open_once(device_id, false, hint)
     }
 
     fn open_once(
@@ -460,8 +474,7 @@ fn resume_pulse_sinks() {
 fn device_allows_exclusive(device_id: Option<&str>) -> bool {
     #[cfg(target_os = "windows")]
     {
-        let _ = device_id;
-        return true;
+        return crate::wasapi_exclusive::device_supports_exclusive(device_id);
     }
     #[cfg(any(
         target_os = "linux",

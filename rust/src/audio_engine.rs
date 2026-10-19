@@ -757,6 +757,35 @@ impl AudioEngine {
         Ok(())
     }
 
+    pub fn shutdown() {
+        logger::info_audio("AudioEngine::shutdown");
+        let Some(arc) = ENGINE.get().cloned() else {
+            #[cfg(target_os = "windows")]
+            crate::wasapi_exclusive::join_abandoned();
+            return;
+        };
+        let wait = {
+            let mut e = arc.lock().unwrap();
+            let wait = e.signal_stop();
+            e.output.start_drain();
+            wait
+        };
+        if let Some(flags) = wait {
+            wait_stopped(&flags);
+        }
+        {
+            let mut e = arc.lock().unwrap();
+            e.output = AudioOutput::closed();
+            e.decoder = None;
+            e.next_decoder = None;
+            e.decode_thread_died.store(false, Ordering::SeqCst);
+        }
+        #[cfg(target_os = "windows")]
+        crate::wasapi_exclusive::join_abandoned();
+        PLAYING.store(false, Ordering::Release);
+        EXCLUSIVE.store(false, Ordering::Release);
+    }
+
     pub fn stop_now() -> Result<()> {
         logger::info_audio("stop()");
         let arc = Self::global_safe()?;

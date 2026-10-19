@@ -46,6 +46,57 @@ use windows::{
 
 const RATES: &[u32] = &[44_100, 48_000, 88_200, 96_000, 176_400, 192_000];
 
+// Timed-out exclusive threads
+static ABANDONED: Mutex<Vec<thread::JoinHandle<()>>> = Mutex::new(Vec::new());
+
+fn abandoned_handles() -> std::sync::MutexGuard<'static, Vec<thread::JoinHandle<()>>> {
+    ABANDONED
+        .lock()
+        .unwrap_or_else(|poisoned| poisoned.into_inner())
+}
+
+fn abandon(handle: thread::JoinHandle<()>) {
+    abandoned_handles().push(handle);
+}
+
+pub fn join_abandoned() {
+    let handles = abandoned_handles().drain(..).collect::<Vec<_>>();
+    for handle in handles {
+        let (tx, rx) = mpsc::channel();
+        thread::spawn(move || {
+            let _ = handle.join();
+            let _ = tx.send(());
+        });
+        let _ = rx.recv_timeout(Duration::from_millis(300));
+    }
+}
+
+pub fn device_supports_exclusive(device_id: Option<&str>) -> bool {
+    unsafe {
+        // Do not CoUninitialize
+        let _ = CoInitializeEx(None, COINIT_MULTITHREADED).ok();
+        let enumerator: IMMDeviceEnumerator =
+            match CoCreateInstance(&MMDeviceEnumerator, None, CLSCTX_ALL) {
+                Ok(enumerator) => enumerator,
+                Err(_) => return false,
+            };
+        let device = match device_id {
+            Some(id) if !id.is_empty() && id != "default" => {
+                let wide = to_wide(id);
+                match enumerator.GetDevice(PCWSTR::from_raw(wide.as_ptr())) {
+                    Ok(device) => device,
+                    Err(_) => return false,
+                }
+            }
+            _ => match enumerator.GetDefaultAudioEndpoint(eRender, eConsole) {
+                Ok(device) => device,
+                Err(_) => return false,
+            },
+        };
+        probe_exclusive_device(&device)
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct DeviceInfo {
     pub id: String,
@@ -187,6 +238,7 @@ impl ExclusiveStream {
             }
             Err(_) => {
                 alive.store(false, Ordering::SeqCst);
+                abandon(_thread);
                 Err(anyhow!("WASAPI exclusive start timed out"))
             }
         }

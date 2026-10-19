@@ -29,6 +29,9 @@ Future<void> reinitEngine({
 
 Future<void> recoverEngine() => AqlossCore.instance.api.crateApiRecoverEngine();
 
+Future<void> shutdownEngine() =>
+    AqlossCore.instance.api.crateApiShutdownEngine();
+
 bool isDecodeThreadDead() =>
     AqlossCore.instance.api.crateApiIsDecodeThreadDead();
 
