@@ -24,6 +24,61 @@ struct _Aqloss
 
 G_DEFINE_TYPE(Aqloss, aqloss, GTK_TYPE_APPLICATION)
 
+static void isolate_fontconfig(void)
+{
+  const gchar *xdg_cache = g_getenv("XDG_CACHE_HOME");
+  g_autofree gchar *app_cache = nullptr;
+  if (xdg_cache && *xdg_cache)
+    app_cache = g_build_filename(xdg_cache, APPLICATION_ID, nullptr);
+  else
+    app_cache = g_build_filename(g_get_home_dir(), ".cache", APPLICATION_ID,
+                                 nullptr);
+  g_mkdir_with_parents(app_cache, 0755);
+  g_setenv("XDG_CACHE_HOME", app_cache, TRUE);
+
+  g_autofree gchar *fc_cache =
+      g_build_filename(app_cache, "fontconfig", nullptr);
+  g_mkdir_with_parents(fc_cache, 0755);
+
+  g_autofree gchar *conf_dir = g_build_filename(
+      g_get_user_config_dir(), APPLICATION_ID, "fontconfig", nullptr);
+  g_mkdir_with_parents(conf_dir, 0755);
+  g_autofree gchar *conf_path =
+      g_build_filename(conf_dir, "fonts.conf", nullptr);
+
+  g_autofree gchar *escaped = g_markup_escape_text(fc_cache, -1);
+  g_autofree gchar *conf = g_strdup_printf(
+      "<?xml version=\"1.0\"?>\n"
+      "<!DOCTYPE fontconfig SYSTEM \"urn:fontconfig:fonts.dtd\">\n"
+      "<fontconfig>\n"
+      "  <include ignore_missing=\"yes\">/etc/fonts/fonts.conf</include>\n"
+      "  <cachedir>%s</cachedir>\n"
+      "  <selectfont>\n"
+      "    <rejectfont>\n"
+      "      <pattern>\n"
+      "        <patelt name=\"fontwrapper\"><string>WOFF</string></patelt>\n"
+      "      </pattern>\n"
+      "    </rejectfont>\n"
+      "    <rejectfont>\n"
+      "      <glob>/usr/share/fonts/woff/*</glob>\n"
+      "    </rejectfont>\n"
+      "    <rejectfont>\n"
+      "      <glob>/run/host/fonts/woff/*</glob>\n"
+      "    </rejectfont>\n"
+      "  </selectfont>\n"
+      "</fontconfig>\n",
+      escaped);
+
+  GError *err = nullptr;
+  if (!g_file_set_contents(conf_path, conf, -1, &err))
+  {
+    g_warning("aqloss: could not write fontconfig: %s", err->message);
+    g_error_free(err);
+    return;
+  }
+  g_setenv("FONTCONFIG_FILE", conf_path, TRUE);
+}
+
 static void apply_hw_accel_pref(void)
 {
   gchar *path = g_build_filename(g_get_user_data_dir(), APPLICATION_ID,
@@ -507,6 +562,7 @@ static void aqloss_init(Aqloss *) {}
 
 Aqloss *aqloss_new()
 {
+  isolate_fontconfig();
   g_set_prgname(APPLICATION_ID);
   return AQLOSS_APP(g_object_new(aqloss_get_type(),
                                  "application-id", APPLICATION_ID,
