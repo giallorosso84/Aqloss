@@ -15,6 +15,9 @@ case "${host}" in
     ;;
 esac
 
+mkdir -p "$(dirname "${out}")"
+out="$(cd "$(dirname "${out}")" && pwd)/$(basename "${out}")"
+
 workdir="$(mktemp -d)"
 trap 'rm -rf "${workdir}"' EXIT
 
