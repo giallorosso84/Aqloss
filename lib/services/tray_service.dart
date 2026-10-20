@@ -127,6 +127,13 @@ class TrayService with TrayListener {
     try {
       await windowManager.setPreventClose(false);
     } catch (_) {}
+    if (Platform.isWindows) {
+      // Close the window
+      try {
+        await windowManager.close();
+      } catch (_) {}
+      return;
+    }
     // Delay destroy
     await Future<void>.delayed(const Duration(milliseconds: 50));
     try {

@@ -63,9 +63,9 @@ Sleep timer, resume position, EQ presets, track info, notices, missing files, se
 - [Backend|Audio] Crossfade uses the full length you picked
 - [Backend|Audio] Exclusive mode can take the DAC instead of failing silently
 
-- [Windows] Quit stops the audio engine before the window exits, so a live exclusive stream cannot crash Flutter (#46)
+- [Windows] Fix crash on windows (#46)
 - [Windows] Installer runs without admin and puts Aqloss in this user's folder (#35)
-- [Windows] Exclusive output uses the shared mixer when the device does not support exclusive (#46)
+- [Windows] Exclusive output uses the shared mixer when the device does not support exclusive (#41)
 - [Windows|Audio] Exclusive output no longer freezes the app when the DAC does not start in time (#41)
 
 - [Linux] Add Folder uses the in-app picker, so it is not hidden behind the window and does not use a dark GTK title bar (#30)

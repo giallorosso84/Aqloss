@@ -74,6 +74,9 @@ int APIENTRY wWinMain(_In_ HINSTANCE instance, _In_opt_ HINSTANCE prev,
     ::DispatchMessage(&msg);
   }
 
+  // Destroy the window
+  window.Destroy();
+
   ::CoUninitialize();
   return EXIT_SUCCESS;
 }
