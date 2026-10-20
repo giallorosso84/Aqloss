@@ -25,9 +25,33 @@ jobs:
       - name: Assert tag matches version.yaml
         run: bash .github/scripts/assert-release-version.sh
 
+  bundle-ffmpeg:
+    name: Bundle ffmpeg
+    needs: [validate]
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl xz-utils pkg-config gcc-mingw-w64-x86-64
+
+      - name: Build Linux and Windows ffmpeg
+        run: |
+          bash .github/scripts/build-ffmpeg.sh ffmpeg-bins/ffmpeg linux
+          bash .github/scripts/build-ffmpeg.sh ffmpeg-bins/ffmpeg.exe windows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-bins
+          retention-days: 1
+          if-no-files-found: error
+          path: ffmpeg-bins/
+
   build-linux:
     name: Linux
-    needs: [validate]
+    needs: [validate, bundle-ffmpeg]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -37,6 +61,12 @@ jobs:
         with:
           install-linux-deps: "true"
       - run: flutter build linux --release
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-bins
+          path: ffmpeg-bins
+      - name: Stage bundled ffmpeg
+        run: bash .github/scripts/stage-ffmpeg.sh ffmpeg-bins/ffmpeg build/linux/x64/release/bundle
       - run: |
           bash .github/scripts/package-deb.sh "${{ steps.version.outputs.version }}"
           bash .github/scripts/package-appimage.sh
@@ -53,7 +83,7 @@ jobs:
 
   build-linux-rpm:
     name: Linux (RPM)
-    needs: [validate]
+    needs: [validate, bundle-ffmpeg]
     runs-on: ubuntu-latest
     container:
       image: fedora:42
@@ -73,6 +103,12 @@ jobs:
         with:
           install-linux-deps: "false"
       - run: flutter build linux --release
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-bins
+          path: ffmpeg-bins
+      - name: Stage bundled ffmpeg
+        run: bash .github/scripts/stage-ffmpeg.sh ffmpeg-bins/ffmpeg build/linux/x64/release/bundle
       - run: bash .github/scripts/package-rpm.sh "${{ steps.version.outputs.version }}"
       - uses: actions/upload-artifact@v4
         with:
@@ -82,7 +118,7 @@ jobs:
 
   build-windows:
     name: Windows
-    needs: [validate]
+    needs: [validate, bundle-ffmpeg]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -90,6 +126,13 @@ jobs:
         id: version
       - uses: ./.github/actions/setup-aqloss
       - run: flutter build windows --release
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-bins
+          path: ffmpeg-bins
+      - name: Stage bundled ffmpeg
+        shell: pwsh
+        run: Copy-Item -Force ffmpeg-bins\ffmpeg.exe build\windows\x64\runner\Release\ffmpeg.exe
       - shell: pwsh
         run: |
           .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"

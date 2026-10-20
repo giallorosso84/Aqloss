@@ -26,7 +26,7 @@ BIN=""
 if [ -x "${APP}/Contents/MacOS/aqloss" ]; then
   BIN="${APP}/Contents/MacOS/aqloss"
 elif [ -d "${APP}/Contents/MacOS" ]; then
-  BIN="$(find "${APP}/Contents/MacOS" -maxdepth 1 -type f -perm -111 | head -n 1)"
+  BIN="$(find "${APP}/Contents/MacOS" -maxdepth 1 -type f -perm -111 ! -name ffmpeg | head -n 1)"
 fi
 
 if [ -z "$BIN" ] || [ ! -x "$BIN" ]; then

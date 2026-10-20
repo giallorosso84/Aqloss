@@ -43,7 +43,8 @@ On Windows, **WASAPI Exclusive** can send the stream straight to the device (no 
 
 ## Formats
 
-DSD (`.dsf` / `.dff`) is not supported. Symphonia has no DSD decoder, and I'm not adding a second path for it.
+DSD (`.dsf` / `.dff`) is not supported. Symphonia has no DSD decoder, and I'm not adding a second path for it. AC-3 and E-AC-3 are the exception: Linux, Windows, and macOS packages include a small ffmpeg, and Flathub builds the same one into the app. A local build uses ffmpeg from PATH. Output is downmixed to stereo. Android and iOS do not ship it.
+
 | Format | Extensions | Notes |
 | --- | --- | --- |
 | FLAC | `.flac` | lossless, up to 32-bit / 384 kHz |
@@ -51,6 +52,7 @@ DSD (`.dsf` / `.dff`) is not supported. Symphonia has no DSD decoder, and I'm no
 | ALAC | `.m4a` | lossless |
 | MP3 | `.mp3` | |
 | AAC | `.aac` `.m4a` | |
+| AC-3 / E-AC-3 | `.m4a` | bundled ffmpeg on desktop, downmixed to stereo |
 | Vorbis | `.ogg` | |
 | Opus | `.opus` | libopus via Symphonia adapter |
 | WavPack | `.wv` | lossless |

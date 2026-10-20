@@ -51,7 +51,7 @@ mkdir -p %{buildroot}/opt/aqloss %{buildroot}/usr/bin \\
   %{buildroot}/usr/share/icons/hicolor/256x256/apps \\
   %{buildroot}/usr/share/mime/packages
 cp -a "\$BUNDLE"/. %{buildroot}/opt/aqloss/
-EXE=\$(find %{buildroot}/opt/aqloss -maxdepth 1 -type f ! -name '*.so' ! -name '*.desktop' | head -1)
+EXE=\$(find %{buildroot}/opt/aqloss -maxdepth 1 -type f ! -name '*.so' ! -name '*.desktop' ! -name 'ffmpeg' | head -1)
 if [ -z "\$EXE" ]; then
   echo "No executable found under %{buildroot}/opt/aqloss" >&2
   ls -la %{buildroot}/opt/aqloss >&2 || true
@@ -62,6 +62,9 @@ if [ "\$EXE_NAME" != "aqloss" ]; then
   mv "\$EXE" %{buildroot}/opt/aqloss/aqloss
 fi
 chmod +x %{buildroot}/opt/aqloss/aqloss
+if [ -f %{buildroot}/opt/aqloss/ffmpeg ]; then
+  chmod +x %{buildroot}/opt/aqloss/ffmpeg
+fi
 ln -sf /opt/aqloss/aqloss %{buildroot}/usr/bin/aqloss
 cp '${RPMROOT}/SOURCES/xyz.nokarin.aqloss.desktop' \\
   %{buildroot}/usr/share/applications/xyz.nokarin.aqloss.desktop

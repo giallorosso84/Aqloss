@@ -124,6 +124,35 @@ docker run --rm \
   "${FLATPAK_FLUTTER_IMAGE}" \
   flatpak-flutter.yaml
 
+python3 - <<'PY'
+from pathlib import Path
+
+path = Path("xyz.nokarin.aqloss.yaml")
+text = path.read_text()
+if "name: ffmpeg\n" in text:
+    print("ffmpeg module already present")
+else:
+    marker = "modules:\n"
+    idx = text.find(marker)
+    if idx < 0:
+        raise SystemExit("modules: not found in xyz.nokarin.aqloss.yaml")
+    block = """  - name: ffmpeg
+    buildsystem: simple
+    build-commands:
+      - |
+        cd ffmpeg-*
+        ./configure --disable-everything --disable-autodetect --disable-doc --disable-network --disable-debug --disable-avdevice --disable-swscale --disable-postproc --disable-asm --enable-small --enable-static --disable-shared --enable-ffmpeg --disable-ffprobe --enable-avcodec --enable-avformat --enable-avutil --enable-swresample --enable-avfilter --enable-protocol=file,pipe --enable-demuxer=mov --enable-decoder=ac3,eac3 --enable-muxer=pcm_f32le --enable-encoder=pcm_f32le --enable-filter=aresample --extra-cflags=-Os
+        make -j$(nproc)
+        install -Dm755 ffmpeg /app/bin/ffmpeg
+    sources:
+      - type: archive
+        url: https://ffmpeg.org/releases/ffmpeg-7.1.1.tar.xz
+        sha256: 733984395e0dbbe5c046abda2dc49a5544e7e0e1e2366bba849222ae9e3a03b1
+"""
+    path.write_text(text[: idx + len(marker)] + block + text[idx + len(marker) :])
+    print("added ffmpeg module")
+PY
+
 python3 - "${AQLOSS_GIT}" <<'PY'
 import sys
 from pathlib import Path

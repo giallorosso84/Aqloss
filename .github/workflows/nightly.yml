@@ -29,9 +29,34 @@ jobs:
         name: Skip if nightly is this commit
         run: bash .github/scripts/nightly-should-build.sh
 
+  bundle-ffmpeg:
+    name: Bundle ffmpeg
+    needs: [gate]
+    if: needs.gate.outputs.should_build == 'true'
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl xz-utils pkg-config gcc-mingw-w64-x86-64
+
+      - name: Build Linux and Windows ffmpeg
+        run: |
+          bash .github/scripts/build-ffmpeg.sh ffmpeg-bins/ffmpeg linux
+          bash .github/scripts/build-ffmpeg.sh ffmpeg-bins/ffmpeg.exe windows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-bins
+          retention-days: 1
+          if-no-files-found: error
+          path: ffmpeg-bins/
+
   build-linux:
     name: Linux
-    needs: [gate]
+    needs: [gate, bundle-ffmpeg]
     if: needs.gate.outputs.should_build == 'true'
     runs-on: ubuntu-22.04
     steps:
@@ -42,6 +67,12 @@ jobs:
         with:
           install-linux-deps: "true"
       - run: flutter build linux --release --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-bins
+          path: ffmpeg-bins
+      - name: Stage bundled ffmpeg
+        run: bash .github/scripts/stage-ffmpeg.sh ffmpeg-bins/ffmpeg build/linux/x64/release/bundle
       - run: |
           bash .github/scripts/package-deb.sh "${{ steps.version.outputs.version }}"
           UPDATE_INFO='gh-releases-zsync|nokarin-dev|Aqloss|nightly|Aqloss-x86_64.AppImage.zsync' \
@@ -59,7 +90,7 @@ jobs:
 
   build-linux-rpm:
     name: Linux (RPM)
-    needs: [gate]
+    needs: [gate, bundle-ffmpeg]
     if: needs.gate.outputs.should_build == 'true'
     runs-on: ubuntu-latest
     container:
@@ -80,6 +111,12 @@ jobs:
         with:
           install-linux-deps: "false"
       - run: flutter build linux --release --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-bins
+          path: ffmpeg-bins
+      - name: Stage bundled ffmpeg
+        run: bash .github/scripts/stage-ffmpeg.sh ffmpeg-bins/ffmpeg build/linux/x64/release/bundle
       - run: bash .github/scripts/package-rpm.sh "${{ steps.version.outputs.version }}"
       - uses: actions/upload-artifact@v4
         with:
@@ -89,7 +126,7 @@ jobs:
 
   build-windows:
     name: Windows
-    needs: [gate]
+    needs: [gate, bundle-ffmpeg]
     if: needs.gate.outputs.should_build == 'true'
     runs-on: windows-latest
     steps:
@@ -98,6 +135,13 @@ jobs:
         id: version
       - uses: ./.github/actions/setup-aqloss
       - run: flutter build windows --release --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-bins
+          path: ffmpeg-bins
+      - name: Stage bundled ffmpeg
+        shell: pwsh
+        run: Copy-Item -Force ffmpeg-bins\ffmpeg.exe build\windows\x64\runner\Release\ffmpeg.exe
       - shell: pwsh
         run: |
           .\.github\scripts\package-windows.ps1 -Version "${{ steps.version.outputs.version }}"
@@ -165,6 +209,12 @@ jobs:
         run: flutter build macos --release --dart-define=AQLOSS_CHANNEL=${{ env.AQLOSS_CHANNEL }}
       - name: Smoke test macOS launch
         run: bash .github/scripts/smoke-macos.sh
+      - name: Bundle ffmpeg
+        run: |
+          brew list xz >/dev/null 2>&1 || brew install xz
+          bash .github/scripts/build-ffmpeg.sh "${RUNNER_TEMP}/ffmpeg" darwin
+          bash .github/scripts/stage-ffmpeg.sh "${RUNNER_TEMP}/ffmpeg" \
+            build/macos/Build/Products/Release/Aqloss.app/Contents/MacOS
       - name: Package DMG and zip (unsigned)
         run: |
           APP="build/macos/Build/Products/Release/Aqloss.app"

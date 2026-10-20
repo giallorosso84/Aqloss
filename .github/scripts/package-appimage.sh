@@ -53,7 +53,7 @@ cat > AppDir/AppRun <<'EOF'
 #!/bin/sh
 APPDIR="$(dirname "$(readlink -f "$0")")"
 export LD_LIBRARY_PATH="$APPDIR/app/lib:$LD_LIBRARY_PATH"
-EXE_NAME=$(find "$APPDIR/app" -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" | xargs -I{} basename {} | head -1)
+EXE_NAME=$(find "$APPDIR/app" -maxdepth 1 -type f ! -name "*.so" ! -name "*.desktop" ! -name "ffmpeg" | xargs -I{} basename {} | head -1)
 [ -z "$EXE_NAME" ] && echo "Aqloss: executable not found" >&2 && exit 1
 cd "$APPDIR/app"
 exec "./$EXE_NAME" "$@"

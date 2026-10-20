@@ -47,9 +47,32 @@ jobs:
         working-directory: rust
         run: cargo check --release
 
+  bundle-ffmpeg:
+    name: Bundle ffmpeg
+    runs-on: ubuntu-22.04
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install toolchain
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y build-essential curl xz-utils pkg-config gcc-mingw-w64-x86-64
+
+      - name: Build Linux and Windows ffmpeg
+        run: |
+          bash .github/scripts/build-ffmpeg.sh ffmpeg-bins/ffmpeg linux
+          bash .github/scripts/build-ffmpeg.sh ffmpeg-bins/ffmpeg.exe windows
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ffmpeg-bins
+          retention-days: 1
+          if-no-files-found: error
+          path: ffmpeg-bins/
+
   build-linux:
     name: Linux
-    needs: [quality, rust]
+    needs: [quality, rust, bundle-ffmpeg]
     runs-on: ubuntu-22.04
     steps:
       - uses: actions/checkout@v4
@@ -63,6 +86,14 @@ jobs:
 
       - name: Build Linux release
         run: flutter build linux --release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-bins
+          path: ffmpeg-bins
+
+      - name: Stage bundled ffmpeg
+        run: bash .github/scripts/stage-ffmpeg.sh ffmpeg-bins/ffmpeg build/linux/x64/release/bundle
 
       - name: Package .deb, AppImage, portable
         run: |
@@ -83,7 +114,7 @@ jobs:
 
   build-linux-rpm:
     name: Linux (RPM)
-    needs: [quality, rust]
+    needs: [quality, rust, bundle-ffmpeg]
     runs-on: ubuntu-latest
     container:
       image: fedora:42
@@ -112,6 +143,14 @@ jobs:
       - name: Build Linux release
         run: flutter build linux --release
 
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-bins
+          path: ffmpeg-bins
+
+      - name: Stage bundled ffmpeg
+        run: bash .github/scripts/stage-ffmpeg.sh ffmpeg-bins/ffmpeg build/linux/x64/release/bundle
+
       - name: Package RPM
         run: bash .github/scripts/package-rpm.sh "${{ steps.version.outputs.version }}"
 
@@ -124,7 +163,7 @@ jobs:
 
   build-windows:
     name: Windows
-    needs: [quality, rust]
+    needs: [quality, rust, bundle-ffmpeg]
     runs-on: windows-latest
     steps:
       - uses: actions/checkout@v4
@@ -136,6 +175,15 @@ jobs:
 
       - name: Build Windows release
         run: flutter build windows --release
+
+      - uses: actions/download-artifact@v4
+        with:
+          name: ffmpeg-bins
+          path: ffmpeg-bins
+
+      - name: Stage bundled ffmpeg
+        shell: pwsh
+        run: Copy-Item -Force ffmpeg-bins\ffmpeg.exe build\windows\x64\runner\Release\ffmpeg.exe
 
       - name: Package installer and portable
         shell: pwsh
@@ -214,6 +262,13 @@ jobs:
 
       - name: Smoke test macOS launch
         run: bash .github/scripts/smoke-macos.sh
+
+      - name: Bundle ffmpeg
+        run: |
+          brew list xz >/dev/null 2>&1 || brew install xz
+          bash .github/scripts/build-ffmpeg.sh "${RUNNER_TEMP}/ffmpeg" darwin
+          bash .github/scripts/stage-ffmpeg.sh "${RUNNER_TEMP}/ffmpeg" \
+            build/macos/Build/Products/Release/Aqloss.app/Contents/MacOS
 
       - name: Package DMG and portable zip
         run: |

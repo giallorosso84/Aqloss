@@ -18,7 +18,7 @@ mkdir -p "${PKG}/DEBIAN" "${PKG}/opt/aqloss" "${PKG}/usr/bin" \
 
 cp -r "${BUNDLE}/." "${PKG}/opt/aqloss/"
 
-EXE="$(find "${PKG}/opt/aqloss" -maxdepth 1 -type f ! -name '*.so' ! -name '*.desktop' | head -1)"
+EXE="$(find "${PKG}/opt/aqloss" -maxdepth 1 -type f ! -name '*.so' ! -name '*.desktop' ! -name 'ffmpeg' | head -1)"
 if [ -z "${EXE}" ]; then
   echo "No executable found in ${PKG}/opt/aqloss" >&2
   ls -la "${PKG}/opt/aqloss" >&2 || true
@@ -50,7 +50,7 @@ EOF
 
 cat > "${PKG}/DEBIAN/postinst" <<'EOF'
 #!/bin/sh
-chmod +x /opt/aqloss/aqloss 2>/dev/null || true
+chmod +x /opt/aqloss/aqloss /opt/aqloss/ffmpeg 2>/dev/null || true
 update-mime-database /usr/share/mime 2>/dev/null || true
 update-desktop-database /usr/share/applications 2>/dev/null || true
 gtk-update-icon-cache -f /usr/share/icons/hicolor 2>/dev/null || true
